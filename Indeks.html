@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>AEGIS TACTICAL HUD</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: monospace; }
+    #video { position: absolute; width: 100%; height: 100%; object-fit: cover; z-index: 1; }
+    #hud { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 2; pointer-events: none; }
+    #btn-start {
+      position: absolute; z-index: 10; top: 50%; left: 50%; transform: translate(-50%, -50%);
+      background: rgba(0, 240, 255, 0.2); border: 2px solid #00f0ff; color: #00f0ff;
+      padding: 15px 30px; font-size: 16px; font-weight: bold; letter-spacing: 2px;
+      cursor: pointer; backdrop-filter: blur(5px);
+    }
+  </style>
+</head>
+<body>
+
+  <button id="btn-start">ENGAGE HUD SYSTEM</button>
+  <video id="video" autoplay playsinline muted></video>
+  <canvas id="hud"></canvas>
+
+  <script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('hud');
+    const ctx = canvas.getContext('2d');
+    const btnStart = document.getElementById('btn-start');
+
+    let pitch = 0, roll = 0, compass = 0;
+
+    function resize() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Start System & Sensor
+    btnStart.addEventListener('click', async () => {
+      btnStart.style.display = 'none';
+      if (document.documentElement.requestFullscreen) {
+        document.documentElement.requestFullscreen();
+      }
+
+      // Akses Kamera Belakang
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: { ideal: "environment" } }
+        });
+        video.srcObject = stream;
+      } catch (e) {
+        alert("Gagal buka kamera: " + e);
+      }
+
+      // Akses Sensor Orientasi Fisik HP
+      window.addEventListener('deviceorientation', (e) => {
+        pitch = e.beta || 0;   // Sudut angguk (-180 s/d 180)
+        roll = e.gamma || 0;   // Sudut miring kiri/kanan (-90 s/d 90)
+        compass = e.alpha || 0; // Kompas derajat
+      });
+
+      renderLoop();
+    });
+
+    function drawSciFiCorners(w, h) {
+      ctx.strokeStyle = '#00f0ff';
+      ctx.lineWidth = 3;
+      const len = 40;
+      // 4 Sudut Layar
+      ctx.strokeRect(10, 10, len, 0); ctx.strokeRect(10, 10, 0, len);
+      ctx.strokeRect(w - 10, 10, -len, 0); ctx.strokeRect(w - 10, 10, 0, len);
+      ctx.strokeRect(10, h - 10, len, 0); ctx.strokeRect(10, h - 10, 0, -len);
+      ctx.strokeRect(w - 10, h - 10, -len, 0); ctx.strokeRect(w - 10, h - 10, 0, -len);
+    }
+
+    function renderLoop() {
+      const w = canvas.width;
+      const h = canvas.height;
+      const cx = w / 2;
+      const cy = h / 2;
+
+      ctx.clearRect(0, 0, w, h);
+
+      // 1. Framing Cyberpunk
+      drawSciFiCorners(w, h);
+
+      // 2. Data Telemetri Taktis (Monospace Neon)
+      ctx.fillStyle = '#00f0ff';
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 8;
+      ctx.font = '12px monospace';
+      ctx.fillText(`SYS: OPTICAL FEED ONLINE`, 25, 35);
+      ctx.fillText(`HDG: ${Math.round(compass)}°`, 25, 55);
+      ctx.fillText(`PIT: ${Math.round(pitch)}°`, 25, 75);
+      ctx.fillText(`ROL: ${Math.round(roll)}°`, 25, 95);
+      ctx.fillText(`FPS: 60 [LOCKED]`, w - 140, 35);
+
+      // 3. Center Reticle Target
+      ctx.strokeStyle = 'rgba(0, 240, 255, 0.8)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 50, 0, Math.PI * 2);
+      ctx.moveTo(cx - 65, cy); ctx.lineTo(cx - 35, cy);
+      ctx.moveTo(cx + 35, cy); ctx.lineTo(cx + 65, cy);
+      ctx.moveTo(cx, cy - 65); ctx.lineTo(cx, cy - 35);
+      ctx.moveTo(cx, cy + 35); ctx.lineTo(cx, cy + 65);
+      ctx.stroke();
+
+      // 4. Artificial Horizon Bar (Bergerak mengikuti kemiringan HP)
+      ctx.save();
+      ctx.translate(cx, cy);
+      ctx.rotate((-roll * Math.PI) / 180); // Miring sesuai roll
+      ctx.translate(0, (pitch - 45) * 2);  // Gerak naik-turun sesuai pitch
+
+      ctx.strokeStyle = '#39ff14'; // Aksen hijau radar
+      ctx.shadowColor = '#39ff14';
+      ctx.beginPath();
+      ctx.moveTo(-90, 0); ctx.lineTo(-30, 0);
+      ctx.moveTo(30, 0); ctx.lineTo(90, 0);
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.shadowBlur = 0; // Reset efek glow untuk frame berikutnya
+      requestAnimationFrame(renderLoop);
+    }
+  </script>
+</body>
+</html>
